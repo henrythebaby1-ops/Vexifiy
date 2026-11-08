@@ -1,0 +1,16 @@
+{
+  "name": "vexifiy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Unofficial VIQRC Level Up companion: local AI manual assistant, custom timers and 3D field.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "blockly": "13.3.0",
+    "pdfjs-dist": "^4.10.38",
+    "three": "^0.170.0"
+  }
+}
