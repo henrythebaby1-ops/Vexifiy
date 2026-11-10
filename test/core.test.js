@@ -194,3 +194,13 @@ test('scoring matches SC3-SC5', () => {
   assert.equal(t.total, 28);
   assert.equal(t.counts.L3, 1);
 });
+
+test('driver switch sounds once when the window opens and once when it closes', () => {
+  for (const id of ['teamwork', 'drill']) {
+    const t = compile(preset(id));
+    const work = t.steps.find((s) => s.kind === 'work');
+    const at = (sec) => eventsBetween(t, work.startMs + (60 - sec) * 1000 - 1, work.startMs + (60 - sec) * 1000).map((e) => e.type);
+    assert.deepEqual(at(35), ['cue'], id);
+    assert.deepEqual(at(25), ['cue'], id);
+  }
+});

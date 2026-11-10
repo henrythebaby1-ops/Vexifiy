@@ -18,6 +18,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
 const THREE_DIR = path.join(ROOT, 'node_modules', 'three');
 const BLOCKLY_DIR = path.join(ROOT, 'node_modules', 'blockly');
+const SOUNDS_DIR = path.join(ROOT, 'sounds');
 const DATA = path.join(ROOT, 'data');
 const LIBRARY = path.join(DATA, 'library.json');
 const PORT = Number(process.env.PORT || 4477);
@@ -185,7 +186,7 @@ async function retrieve(query, limit = 5) {
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json',
-  '.png': 'image/png', '.webmanifest': 'application/manifest+json',
+  '.png': 'image/png', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.webmanifest': 'application/manifest+json',
 };
 
 const send = (res, status, body) => {
@@ -233,6 +234,11 @@ const routes = {
       embedModel: lib.embedModel, embed: embedState, latest: KNOWN_LATEST,
       docs: lib.docs, today: new Date().toISOString().slice(0, 10),
     });
+  },
+  'GET /api/sounds': async (_req, res) => {
+    let names = [];
+    try { names = readdirSync(SOUNDS_DIR).filter((f) => /\.(mp3|wav|m4a|ogg)$/i.test(f)); } catch { /* no folder */ }
+    send(res, 200, { files: names });
   },
   'GET /api/rules': async (_req, res) => {
     const rules = active.filter((c) => c.rule && !c.id.includes('#')).map(publicChunk);
@@ -386,6 +392,9 @@ const server = http.createServer(async (req, res) => {
   try {
     if (route) return await route(req, res, url);
     if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
+    if (url.pathname.startsWith('/sounds/')) {
+      return await serveFile(res, SOUNDS_DIR, decodeURIComponent(url.pathname.slice('/sounds/'.length)));
+    }
     if (url.pathname.startsWith('/vendor/blockly/')) {
       return await serveFile(res, BLOCKLY_DIR, decodeURIComponent(url.pathname.slice('/vendor/blockly/'.length)));
     }

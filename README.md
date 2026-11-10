@@ -6,7 +6,7 @@ An unofficial companion app for the 2026-27 VEX IQ Robotics Competition game, Le
 - **Rulebook**: browse and search every rule, with Simple and Referee explanations one click away.
 - **Block code**: snap VEX IQ blocks together (drivetrain, motors, sensors, controller, Brain screen, Touch LED) and export VEX IQ (2nd gen) Python for VEXcode IQ. Describe what you want and the AI builds or changes the blocks, or ask it to explain your program. In testing, `phi4:14b` wrote correct programs most often, so it's the default there.
 - **Interview**: practice the judges' team interview. From a bank of 82 questions, an AI judge asks Quick (5) or Full (9) questions, scores each answer 0-5 with a tip and a likely follow-up, and suggests which areas to practice. The areas are modeled on what judges look for; the REC Foundation Guide to Judging has the official rubric.
-- **Timers**: Teamwork and Skills presets with the 0:35-0:25 driver switch window, drills, and your own multi-segment timers with spoken cues. Pick a tournament-style horn and buzzer or classic beeps, or load your own sound file for the start, driver switch, countdown and end (kept in your browser, never uploaded).
+- **Timers**: Teamwork and Skills presets with the 0:35-0:25 driver switch window, drills, and your own multi-segment timers with spoken cues. Like a real field, a start sound plays as the Match begins, the driver switch sounds at 0:35 and 0:25, and the end buzzer is followed by an automatic reset. Use the built-in tournament-style or classic sounds, or put your own recordings in [`sounds/`](sounds/README.md) (ignored by git, so they never get uploaded).
 - **3D Field**: orbit the field, click parts for rules and dimensions, and drag Bean Bags onto Goals to test scores.
 
 ## Run it

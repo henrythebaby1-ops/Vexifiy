@@ -1,16 +1,23 @@
 // Timer sounds: a built-in "tournament" set made in code, the classic beeps, or the user's own files.
 // Your own files are kept in this browser (IndexedDB) and never leave this computer.
 
+// `file` is the name Vexifiy looks for in the project's sounds/ folder.
 export const SOUND_EVENTS = [
-  { id: 'start', name: 'Match start' },
-  { id: 'switch', name: 'Driver switch' },
-  { id: 'tick', name: 'Countdown tick' },
-  { id: 'end', name: 'Match end' },
+  { id: 'start', name: 'Match start', file: 'match-start-cue.mp3' },
+  { id: 'switch', name: 'Driver switch', file: 'driver-switch-cue.mp3' },
+  { id: 'tick', name: 'Countdown tick', file: 'countdown-tick-cue.mp3' },
+  { id: 'end', name: 'End buzzer', file: 'end-buzzer-cue.mp3' },
 ];
 export const MAX_FILE = 5 * 1024 * 1024;
 
 const DB = 'vexifiy-sounds';
-const files = {}; // id -> { name, blob, buffer }
+const files = {}; // sounds picked in the browser: id -> { name, blob, buffer }
+const folder = {}; // sounds found in the sounds/ folder: id -> { name, buffer }
+let decoder = null;
+const decode = async (blob) => {
+  decoder ||= new OfflineAudioContext(1, 1, 44100);
+  return decoder.decodeAudioData(await blob.arrayBuffer());
+};
 
 function db() {
   return new Promise((resolve, reject) => {
@@ -31,21 +38,34 @@ const tx = async (mode, fn) => {
 };
 
 export async function loadSoundFiles() {
+  let present = [];
+  try { present = (await (await fetch('/api/sounds')).json()).files || []; } catch { /* offline */ }
+  await Promise.all(SOUND_EVENTS.filter((e) => present.includes(e.file)).map(async ({ id, file }) => {
+    try {
+      const res = await fetch(`/sounds/${file}`);
+      if (res.ok) folder[id] = { name: file, buffer: await decode(await res.blob()) };
+    } catch { /* no file, or not a sound: use the built-in one */ }
+  }));
   try {
     for (const { id } of SOUND_EVENTS) {
       const rec = await tx('readonly', (s) => s.get(id));
-      if (rec?.blob) files[id] = { name: rec.name, blob: rec.blob, buffer: null };
+      if (rec?.blob) files[id] = { name: rec.name, blob: rec.blob, buffer: await decode(rec.blob).catch(() => null) };
     }
   } catch { /* storage blocked: built-in sounds still work */ }
 }
 
-export const soundFile = (id) => files[id]?.name || null;
+// Where a sound comes from: 'browser', 'folder' or null for built-in.
+export const soundSource = (id) => (files[id] ? { from: 'browser', name: files[id].name } : folder[id] ? { from: 'folder', name: folder[id].name } : null);
+export const soundFile = (id) => soundSource(id)?.name || null;
+
 
 export async function setSoundFile(id, file) {
   if (file.size > MAX_FILE) throw new Error('Please pick a sound under 5 MB.');
   if (!/^audio\//.test(file.type) && !/\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(file.name)) throw new Error('That does not look like a sound file.');
   const rec = { name: file.name, blob: file };
-  files[id] = { ...rec, buffer: null };
+  let buffer;
+  try { buffer = await decode(file); } catch { throw new Error('That sound file could not be played. Try an MP3 or WAV.'); }
+  files[id] = { ...rec, buffer };
   try { await tx('readwrite', (s) => s.put(rec, id)); } catch { /* keeps working for this visit */ }
 }
 
@@ -55,10 +75,9 @@ export async function clearSoundFile(id) {
 }
 
 async function playFile(ctx, id, volume) {
-  const f = files[id];
-  if (!f) return false;
+  const f = files[id]?.buffer ? files[id] : folder[id];
+  if (!f?.buffer) return false;
   try {
-    f.buffer ||= await ctx.decodeAudioData(await f.blob.arrayBuffer());
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     gain.gain.value = volume;

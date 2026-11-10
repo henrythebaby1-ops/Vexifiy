@@ -3,7 +3,7 @@ import {
   PRESETS, blankTimer, compile, stateAt, eventsBetween, formatTime, parseTime, skillsStopTime, validateTimer,
 } from './timer-core.js';
 import {
-  SOUND_EVENTS, STYLES, loadSoundFiles, soundFile, setSoundFile, clearSoundFile, playSound,
+  SOUND_EVENTS, STYLES, loadSoundFiles, soundSource, setSoundFile, clearSoundFile, playSound,
 } from './timer-sounds.js';
 
 const COLORS = { yellow: 'var(--yellow)', red: 'var(--red)', blue: 'var(--blue)', green: 'var(--green)', muted: 'var(--muted)' };
@@ -74,6 +74,7 @@ function onKey(e) {
   if (e.code === 'Space') { e.preventDefault(); toggle(); }
   if (e.key === 'r') reset();
   if (e.key === 'f') $('#st-full', root).click();
+  if (e.key === 'm') $('#st-sound', root).click();
 }
 
 function paintPrefs() {
@@ -170,7 +171,12 @@ function tick() {
   for (const ev of eventsBetween(run.timeline, run.lastMs, now)) fire(ev);
   run.lastMs = now;
   run.elapsed = now;
-  if (now >= run.timeline.totalMs) { run.status = 'done'; releaseWake(); }
+  if (now >= run.timeline.totalMs) {
+    run.status = 'done';
+    releaseWake();
+    // Show "Time" while the buzzer sounds, then get ready for the next Match.
+    run.timeout = setTimeout(() => { if (run.status === 'done') reset(); }, 1800);
+  }
   if (!document.hidden && root.classList.contains('active')) paint();
   if (run.status === 'running') {
     // Animation frames stop in a hidden tab, so fall back to a timer to keep cues firing.
@@ -210,8 +216,8 @@ function paint() {
   if (go.textContent !== goText) go.textContent = goText;
   $('#st-stoptime', root).classList.toggle('hidden', !(run.def.stopTime && run.status === 'running' && s.step.kind === 'work'));
   $('#st-sub', root).textContent = run.def.preset && run.def.id === 'teamwork'
-    ? 'Space start/pause · R reset · F fullscreen. Practice tool, not an official Match timer.'
-    : 'Space start/pause · R reset · F fullscreen';
+    ? 'Space start/pause · R reset · M mute · F fullscreen. Practice tool, not an official Match timer.'
+    : 'Space start/pause · R reset · M mute · F fullscreen';
 }
 
 // ---------- Sound ----------
@@ -233,7 +239,11 @@ function say(text) {
 
 function fire(ev) {
   if (ev.type === 'tick') sound('tick');
-  if (ev.type === 'start') { sound(ev.step?.kind === 'work' ? 'start' : 'tick'); if (ev.step?.kind !== 'work' || run.timeline.rounds > 1) say(ev.label); }
+  if (ev.type === 'start') {
+    // The Match start sound plays the moment the clock starts.
+    sound(ev.step?.kind === 'work' ? 'start' : 'tick');
+    if (ev.step?.kind !== 'work' || run.timeline.rounds > 1) say(ev.label);
+  }
   if (ev.type === 'cue') {
     sound('switch');
     say(ev.label);
@@ -382,15 +392,16 @@ function openSounds() {
 function paintSounds(dlg, error = '') {
   dlg.innerHTML = `<div class="dialog-head"><h2 style="font-size:1.15rem">Timer sounds</h2><button class="btn ghost" data-s="close" aria-label="Close">✕</button></div>
     <label class="field-label">Built-in style<select id="sound-style">${STYLES.map(([v, l]) => `<option value="${v}" ${v === prefs.style ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-    <p class="small muted" style="margin:12px 0 6px">Have recordings of the sounds your events use? Add them here. Files stay in this browser on this computer.</p>
+    <p class="small muted" style="margin:12px 0 6px">Use your own recordings: put files with the names below in Vexifiy's <code>sounds</code> folder, or choose a file here (kept in this browser). Your files are never uploaded or added to GitHub.</p>
     <div class="sound-rows">${SOUND_EVENTS.map((ev) => {
-      const name = soundFile(ev.id);
+      const src = soundSource(ev.id);
+      const where = !src ? `Built-in · or add <code>sounds/${ev.file}</code>` : src.from === 'folder' ? `sounds folder: ${esc(src.name)}` : `Chosen file: ${esc(src.name)}`;
       return `<div class="sound-row">
-        <span><b>${ev.name}</b><br><span class="small muted">${name ? esc(name) : 'Built-in'}</span></span>
+        <span><b>${ev.name}</b><br><span class="small muted">${where}</span></span>
         <span class="sound-actions">
           <button class="btn" data-s="test" data-id="${ev.id}">Play</button>
           <label class="btn">Choose file<input type="file" accept="audio/*" data-file="${ev.id}" hidden></label>
-          ${name ? `<button class="btn ghost" data-s="clear" data-id="${ev.id}">Use built-in</button>` : ''}
+          ${src?.from === 'browser' ? `<button class="btn ghost" data-s="clear" data-id="${ev.id}">Remove</button>` : ''}
         </span>
       </div>`;
     }).join('')}</div>

@@ -21,7 +21,7 @@ export const PRESETS = [
   {
     id: 'drill', name: 'Back-to-back match drill', note: '5 matches with 45s resets', preset: true, leadIn: 3, rounds: 5, rest: 45,
     segments: [{ label: 'Match', seconds: 60, color: 'yellow' }],
-    cues: [{ at: 35, until: 25, label: 'Switch drivers' }],
+    cues: [{ at: 35, until: 25, label: 'Switch drivers' }, { at: 25, label: 'Switch window closed' }],
   },
   {
     id: 'relay', name: 'Load Zone relay', note: '6 × 15s load-and-score sprints', preset: true, leadIn: 3, rounds: 6, rest: 10,
@@ -91,7 +91,8 @@ export function eventsBetween(timeline, fromMs, toMs) {
     }
     for (const cue of step.cues) {
       if (crossed(end - cue.at * 1000)) events.push({ type: 'cue', label: cue.label, step });
-      if (cue.until != null && crossed(end - cue.until * 1000)) events.push({ type: 'tick', label: '', step });
+      // A window's end ticks, unless another cue already sounds at that moment.
+      if (cue.until != null && !step.cues.some((c) => c.at === cue.until) && crossed(end - cue.until * 1000)) events.push({ type: 'tick', label: '', step });
     }
     for (let s = 1; s <= 3; s++) {
       if (crossed(end - s * 1000) && step.seconds >= s) events.push({ type: 'tick', label: String(s), step });
